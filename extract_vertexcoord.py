@@ -27,9 +27,13 @@ def output_info(msg):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('input_file', type=str)
+parser.add_argument('-r', '--rows', type=int, default='0')
+parser.add_argument('-c', '--cols', type=int, default='0')
 
 args = parser.parse_args()
-input_file = args.input_file
+input_file  = args.input_file
+target_height = args.rows
+target_width  = args.cols
 
 if not os.access(input_file, os.F_OK) or not os.access(input_file, os.R_OK):
   output_error('invalid file specified <' + input_file + '>')
@@ -45,88 +49,187 @@ except ImportError:
   output_error('opencv not found')
   sys.exit(1)
 
+try:
+  import numpy as np
+except ImportError:
+  output_error('numpy not found')
+  sys.exit(1)
+
 #####################################################################
-# mouse event
+# function for drawing
 #####################################################################
 
-def onMouse(event, x, y, flag, params):
+def draw_radar(image, x, y, w, h):
+  radar_thickness = 1
+  radar_color = (255, 0, 0)
+
+  cv2.line(image, (x, 0), (x, h), radar_color, radar_thickness)
+  cv2.line(image, (0, y), (w, y), radar_color, radar_thickness)
+
+def draw_vertex(image, point_list):
+  point_num = len(point_list)
+
+  if point_num == 0:
+    return
+
+  vertex_radius = 4
+  vertex_color = (0, 0, 255)
+
+  for i in range(point_num):
+    point = point_list[i]
+    cv2.circle(image, point, vertex_radius, vertex_color, cv2.FILLED)
+
+def draw_side(image, point_list):
+  point_num = len(point_list)
+
+  if point_num <= 1:
+    return
+
+  side_thickness = 2
+  side_color = (0, 255, 0)
+
+  for i in range(1, point_num):
+    prev_point = point_list[i - 1]
+    next_point = point_list[i]
+    cv2.line(image, prev_point, next_point, side_color, side_thickness)
+
+  if point_num < max_num:
+    return
+
+  head_point = point_list[0]
+  tail_point = point_list[max_num - 1]
+  cv2.line(image, head_point, tail_point, side_color, side_thickness)
+
+def draw_ongoing(image, point_list, x, y, max_num):
+  point_num = len(point_list)
+
+  if point_num <= 0 or max_num <= point_num:
+    return
+
+  ongoing_thickness = 2
+  ongoing_color = (0, 255, 0)
+
+  tail_point = point_list[point_num - 1]
+  cv2.line(image, [x, y], tail_point, ongoing_color, ongoing_thickness)
+
+#####################################################################
+# function for mouse event
+#####################################################################
+
+def on_event_add(x, y, flag, params):
   raw_image   = params["raw_image"]
   window_name = params["window_name"]
   point_list  = params["point_list"]
+  width       = params["width"]
+  height      = params["height"]
   max_num     = params["max_num"]
 
-  float_point = (x, y)
-  cur_num = len(point_list)
+  if len(point_list) < max_num:
+    point_list.append([x, y])
 
-  if event == cv2.EVENT_LBUTTONDOWN:
-    if cur_num < max_num:
-      point_list.append(float_point)
+  image = raw_image.copy()
+  draw_radar(image, x, y, width, height)
+  draw_vertex(image, point_list)
+  draw_side(image, point_list)
+  cv2.imshow(window_name, image)
 
-  if event == cv2.EVENT_RBUTTONDOWN:
-    if cur_num > 0:
-      point_list.pop(-1)
+def on_event_delete(x, y, flag, params):
+  raw_image   = params["raw_image"]
+  window_name = params["window_name"]
+  point_list  = params["point_list"]
+  width       = params["width"]
+  height      = params["height"]
+  max_num     = params["max_num"]
 
-  cur_num = len(point_list)
+  if point_list:
+    point_list.pop(-1)
 
-  overlap_image = raw_image.copy()
-  h = raw_image.shape[0]
-  w = raw_image.shape[1]
- 
-  c_blue  = (255, 0, 0)
-  c_green = (0, 255, 0)
-  c_red   = (0, 0, 255)
+  image = raw_image.copy()
+  draw_radar(image, x, y, width, height)
+  draw_vertex(image, point_list)
+  draw_side(image, point_list)
+  draw_ongoing(image, point_list, x, y, max_num)
+  cv2.imshow(window_name, image)
 
-  radar_thin   = 1
-  point_radius = 4
-  side_thin    = 2 
+def on_event_steady(x, y, flag, params):
+  raw_image   = params["raw_image"]
+  window_name = params["window_name"]
+  point_list  = params["point_list"]
+  width       = params["width"]
+  height      = params["height"]
+  max_num     = params["max_num"]
 
-  cv2.line(overlap_image, (x, 0), (x, h), c_blue, radar_thin)
-  cv2.line(overlap_image, (0, y), (w, y), c_blue, radar_thin)
+  image = raw_image.copy()
+  draw_radar(image, x, y, width, height)
+  draw_vertex(image, point_list)
+  draw_side(image, point_list)
+  draw_ongoing(image, point_list, x, y, max_num)
+  cv2.imshow(window_name, image)
 
-  for i in range(cur_num):
-    point = point_list[i]
-    cv2.circle(overlap_image, point, point_radius, c_red, cv2.FILLED)
-
-  for i in range(1, cur_num):
-    prev_point = point_list[i-1]
-    next_point = point_list[i]
-    cv2.line(overlap_image, prev_point, next_point, c_green, side_thin)
-
-  if cur_num == max_num:
-    head_point = point_list[0]
-    tail_point = point_list[max_num-1]
-    cv2.line(overlap_image, head_point, tail_point, c_green, side_thin)
-
-  if 0 < cur_num and cur_num < max_num:
-    tail_point = point_list[cur_num-1]
-    cv2.line(overlap_image, float_point, tail_point, c_green, side_thin)
-
-  cv2.imshow(window_name, overlap_image)
+def on_mouse_event(event, x, y, flag, params):
+  if   event == cv2.EVENT_LBUTTONDOWN:
+    on_event_add(x, y, flag, params)
+  elif event == cv2.EVENT_RBUTTONDOWN:
+    on_event_delete(x, y, flag, params)
+  elif event == cv2.EVENT_MOUSEMOVE:
+    on_event_steady(x, y, flag, params)
+  else:
+    pass
 
 #####################################################################
 # main routine
 #####################################################################
 
-# input all data
-
 raw_image = cv2.imread(input_file)
-
-window_name = "MouseEvent"
+width  = raw_image.shape[1]
+height = raw_image.shape[0]
+window_name = "Perspective Transform"
 point_list = []
 max_num = 4
+
 params = {
   "raw_image":   raw_image,
   "window_name": window_name,
   "point_list":  point_list,
+  "width":       width,
+  "height":      height,
   "max_num":     max_num,
 }
 
 cv2.namedWindow(window_name)
-cv2.setMouseCallback(window_name, onMouse, params)
+cv2.setMouseCallback(window_name, on_mouse_event, params)
 cv2.imshow(window_name, raw_image)
+
 cv2.waitKey(0)
 
 for i in range(len(point_list)):
   print("{},{}".format(point_list[i][0], point_list[i][1]))
+
+#####################################################################
+# post process
+#####################################################################
+
+if target_width <= 0:
+  target_width = width
+
+if target_height <= 0:
+  target_height = height
+
+target_list = [
+  [0, 0],
+  [target_width, 0],
+  [target_width, target_height],
+  [0, target_height]
+]
+
+pts1 = np.float32(point_list)
+pts2 = np.float32(target_list)
+
+M = cv2.getPerspectiveTransform(pts1, pts2)
+dst = cv2.warpPerspective(raw_image, M, (target_width, target_height))
+
+cv2.namedWindow('Transformed Image')
+cv2.imshow('Transformed Image', dst)
+cv2.waitKey(0)
 
 cv2.destroyAllWindows()
