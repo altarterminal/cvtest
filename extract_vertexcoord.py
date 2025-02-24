@@ -29,14 +29,24 @@ parser = argparse.ArgumentParser()
 parser.add_argument('input_file', type=str)
 parser.add_argument('-r', '--rows', type=int, default='0')
 parser.add_argument('-c', '--cols', type=int, default='0')
+parser.add_argument('-p', '--print', action='store_true')
 
 args = parser.parse_args()
 input_file  = args.input_file
 target_height = args.rows
 target_width  = args.cols
+is_print      = args.print
 
 if not os.access(input_file, os.F_OK) or not os.access(input_file, os.R_OK):
   output_error('invalid file specified <' + input_file + '>')
+  sys.exit(1)
+
+if target_height < 0:
+  output_error('invalid height specified <' + target_height + '>')
+  sys.exit(1)
+
+if target_width < 0:
+  output_error('invalid width specified <' + target_width + '>')
   sys.exit(1)
 
 #####################################################################
@@ -129,8 +139,8 @@ def on_event_add(x, y, flag, params):
 
   image = raw_image.copy()
   draw_radar(image, x, y, width, height)
-  draw_vertex(image, point_list)
   draw_side(image, point_list)
+  draw_vertex(image, point_list)
   cv2.imshow(window_name, image)
 
 def on_event_delete(x, y, flag, params):
@@ -146,9 +156,9 @@ def on_event_delete(x, y, flag, params):
 
   image = raw_image.copy()
   draw_radar(image, x, y, width, height)
-  draw_vertex(image, point_list)
   draw_side(image, point_list)
   draw_ongoing(image, point_list, x, y, max_num)
+  draw_vertex(image, point_list)
   cv2.imshow(window_name, image)
 
 def on_event_steady(x, y, flag, params):
@@ -161,9 +171,9 @@ def on_event_steady(x, y, flag, params):
 
   image = raw_image.copy()
   draw_radar(image, x, y, width, height)
-  draw_vertex(image, point_list)
   draw_side(image, point_list)
   draw_ongoing(image, point_list, x, y, max_num)
+  draw_vertex(image, point_list)
   cv2.imshow(window_name, image)
 
 def on_mouse_event(event, x, y, flag, params):
@@ -200,10 +210,21 @@ cv2.namedWindow(window_name)
 cv2.setMouseCallback(window_name, on_mouse_event, params)
 cv2.imshow(window_name, raw_image)
 
-cv2.waitKey(0)
+while True:
+  keycode = cv2.waitKey(0) & 0xFF
 
-for i in range(len(point_list)):
-  print("{},{}".format(point_list[i][0], point_list[i][1]))
+  if   keycode == 0x71:
+    # [q]
+    cv2.destroyAllWindows()
+    sys.exit(0)
+  elif keycode == 0x0D:
+    # [Enter]
+    if len(point_list) < max_num:
+      output_warn("Specify the FOUR points")
+    else:
+      break
+  else:
+    output_info("[q] for quit of [Enter] for term input")
 
 #####################################################################
 # post process
@@ -222,14 +243,19 @@ target_list = [
   [0, target_height]
 ]
 
-pts1 = np.float32(point_list)
-pts2 = np.float32(target_list)
+src_points = np.float32(point_list)
+dst_points = np.float32(target_list)
 
-M = cv2.getPerspectiveTransform(pts1, pts2)
-dst = cv2.warpPerspective(raw_image, M, (target_width, target_height))
+M = cv2.getPerspectiveTransform(src_points, dst_points)
+dst_img = cv2.warpPerspective(raw_image, M, (target_width, target_height))
+
+if is_print:
+  print("src: {}".format(point_list))
+  print("dst: {}".format(target_list))
+
+print(M)
 
 cv2.namedWindow('Transformed Image')
-cv2.imshow('Transformed Image', dst)
+cv2.imshow('Transformed Image', dst_img)
 cv2.waitKey(0)
-
 cv2.destroyAllWindows()
