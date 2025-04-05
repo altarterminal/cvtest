@@ -54,7 +54,7 @@ else:
 if is_stdin:
   prefix = 'stdin_'
 else:
-  prefix = os.path.basename(in_file) 
+  os.path.basename(in_file) 
 
 date_now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
@@ -97,20 +97,23 @@ for str_line in str_lines:
   num_lines.append([float(i) for i in str_line.split()])
 
 # generate sequences of data
-data_seq  = np.array(num_lines).transpose()
-data_size = len(num_lines)
+data_seq   = np.array(num_lines)
+data_size  = len(num_lines[0])
+stack_size = len(num_lines)
 
 # generate a sequence of x-axis (one-origin)
-axis_seq = np.array(range(data_size)) + 1
-
-for i in range(data_seq.shape[0]):
-  if is_header:
-    plt.plot(axis_seq, data_seq[i], label=header[i])
-  else:
-    plt.plot(axis_seq, data_seq[i])
-
 if is_header:
-  plt.legend(loc = "upper left")
+  axis_seq = np.array(header)
+else:
+  axis_seq = np.array(range(data_size)) + 1
+
+# plot the base data
+plt.bar(axis_seq, data_seq[0])
+
+# plot the multiple data
+for i in range(stack_size-1):
+  plt.bar(axis_seq, data_seq[i])
+  plt.bar(axis_seq, data_seq[i+1], bottom=data_seq[i])
 
 plt.savefig(out_file)
 
