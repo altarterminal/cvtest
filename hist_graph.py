@@ -101,23 +101,9 @@ for str_line in str_lines:
   num_lines.append([float(i) for i in str_line.split()])
 
 # generate sequences of data
-data_seq   = np.array(num_lines)
-data_size  = len(num_lines[0])
-stack_size = len(num_lines)
+data_seq = np.array(num_lines).transpose()[0]
 
-# generate a sequence of x-axis (one-origin)
-if is_header:
-  axis_seq = np.array(header)
-else:
-  axis_seq = np.array(range(data_size)) + 1
-
-# plot the base data
-plt.bar(axis_seq, data_seq[0])
-
-# plot the multiple data
-for i in range(stack_size-1):
-  plt.bar(axis_seq, data_seq[i])
-  plt.bar(axis_seq, data_seq[i+1], bottom=data_seq[i])
+plt.hist(data_seq)
 
 #####################################################################
 # post
