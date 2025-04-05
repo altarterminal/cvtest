@@ -24,7 +24,7 @@ def output_info(msg):
 #####################################################################
 
 parser = argparse.ArgumentParser()
-parser.add_argument('input_file', type=str)
+parser.add_argument('input_file', nargs='?', type=str, default='-')
 parser.add_argument('-d', '--output_dir', type=str, default='.')
 parser.add_argument('-t', '--is_header', action='store_true')
 
