@@ -28,34 +28,22 @@ def output_info(msg):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('in_file', type=str)
-parser.add_argument('-r', '--rows', type=int, default='0')
-parser.add_argument('-c', '--cols', type=int, default='0')
 parser.add_argument('-p', '--points', type=str, default='')
 parser.add_argument('-o', '--out-name', type=str, default='')
 
 args = parser.parse_args()
-in_file       = args.in_file
-target_height = args.rows
-target_width  = args.cols
-points        = args.points
-out_name      = args.out_name
+in_file  = args.in_file
+points   = args.points
+out_name = args.out_name
 
 if not os.access(in_file, os.F_OK) or not os.access(in_file, os.R_OK):
   output_error('invalid file specified <' + in_file + '>')
   sys.exit(1)
 
-if target_height < 0:
-  output_error('invalid height specified <' + target_height + '>')
-  sys.exit(1)
-
-if target_width < 0:
-  output_error('invalid width specified <' + target_width + '>')
-  sys.exit(1)
-
 if out_name == "":
-  out_name = os.path.basename(in_file) + '_numbered.mp4'
+  out_name = os.path.basename(in_file) + '_numbered.mkv'
 else:
-  out_name = in_file.removesuffix('.mp4') + '.mp4'
+  out_name = in_file.removesuffix('.mp4') + '.mkv'
 
 out_file = './' + out_name
 
@@ -83,34 +71,37 @@ ys = list(map(lambda y: int(y), points_all[1::2]))
 
 try:
   import cv2
-B
 except ImportError:
   output_error('opencv not found')
   sys.exit(1)
 
 #####################################################################
-# prepare video player
+# prepare video capture
 #####################################################################
 
 cap = cv2.VideoCapture(in_file)
 
 if not cap.isOpened():
-  output_error('file cannot be opened <' + in_file + '>')
+  output_error('capture cannot be opened <' + in_file + '>')
   sys.exit(1)
 
-if target_width > 0:
-  final_width  = target_width
-  final_height = target_height
-else:
-  final_width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-  final_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#####################################################################
+# prepare video writer
+#####################################################################
+
+frame_width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 fourcc     = cv2.VideoWriter_fourcc(*'X264')
 fps        = float(cap.get(cv2.CAP_PROP_FPS))
-final_size = (final_width, final_height)
+frame_size = (frame_width, frame_height)
 is_color   = True
 
-#writer = cv2.VideoWriter(out_file, fourcc, fps, final_size, is_color)
+writer = cv2.VideoWriter(out_file, fourcc, fps, frame_size, is_color)
+
+if not writer.isOpened():
+  output_error('writer cannot be opened <' + out_file + '>')
+  sys.exit(1)
 
 #####################################################################
 # setting for drawing
@@ -129,8 +120,8 @@ margin = 20
 # prepare for drawing
 #####################################################################
 
-digit_num = len(sample_str)
-str_formatter = '0' + str(digit_num) + 'd'
+digit_num  = len(sample_str)
+str_format = '0' + str(digit_num) + 'd'
 
 font_scale = cv2.getFontScaleFromHeight(font_face, font_height)
 base_size, baseline = cv2.getTextSize(sample_str, font_face, font_scale, str_thickness)
@@ -159,7 +150,7 @@ while True:
   if not is_frame:
     break
   else:
-    cur_str = format(frame_number, str_formatter)
+    cur_str = format(frame_number, str_format)
 
     cur_idx = int(frame_number % point_num)
     x = xs[cur_idx]
@@ -172,11 +163,18 @@ while True:
     str_org = (x + margin, y + margin + str_h)
     cv2.putText(frame, cur_str, str_org, font_face, font_scale, str_color, str_thickness)
 
+    writer.write(frame)
+
     frame_number = frame_number + 1
 
     cv2.imshow("Test", frame)
     if cv2.waitKey(0) & 0xFF == ord('q'):
         break
 
+#####################################################################
+# cleanup
+#####################################################################
+
 cap.release()
+writer.release()
 cv2.destroyAllWindows()
