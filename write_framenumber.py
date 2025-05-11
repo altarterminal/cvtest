@@ -29,23 +29,30 @@ def output_info(msg):
 parser = argparse.ArgumentParser()
 parser.add_argument('in_file', type=str)
 parser.add_argument('-p', '--points', type=str, default='')
-parser.add_argument('-o', '--out-name', type=str, default='')
+parser.add_argument('-d', '--out-dir', type=str, default='', help='output direcotry')
+parser.add_argument('-r', '--is-only-round', action='store_true')
 
 args = parser.parse_args()
-in_file  = args.in_file
-points   = args.points
-out_name = args.out_name
+in_file = args.in_file
+points  = args.points
+out_dir = args.out_dir
+is_only_round = args.is_only_round
 
 if not os.access(in_file, os.F_OK) or not os.access(in_file, os.R_OK):
   output_error('invalid file specified <' + in_file + '>')
   sys.exit(1)
 
-if out_name == "":
-  out_name = os.path.basename(in_file) + '_numbered.mkv'
-else:
-  out_name = in_file.removesuffix('.mp4') + '.mkv'
+if out_dir == "":
+  out_dir = os.path.splitext(os.path.basename(in_file))[0] + '_numbered'
 
-out_file = './' + out_name
+if os.path.isfile(out_dir):
+  output_error('<' + out_dir + '> exists as file')
+  sys.exit(1)
+elif not os.access(out_dir, os.W_OK):
+  output_info('output directory is newly created <' + out_dir + '>')
+  os.makedirs(out_dir)
+else:
+  pass
 
 #####################################################################
 # prepare points information
@@ -61,7 +68,7 @@ if len(points_all) % 2 != 0:
   output_error('invalid number of points specified')
   sys.exit(1)
 
-point_num = len(points_all) / 2
+point_num = int(len(points_all) / 2)
 xs = list(map(lambda x: int(x), points_all[0::2]))
 ys = list(map(lambda y: int(y), points_all[1::2]))
 
@@ -86,35 +93,21 @@ if not cap.isOpened():
   sys.exit(1)
 
 #####################################################################
-# prepare video writer
-#####################################################################
-
-frame_width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-fourcc     = cv2.VideoWriter_fourcc(*'X264')
-fps        = float(cap.get(cv2.CAP_PROP_FPS))
-frame_size = (frame_width, frame_height)
-is_color   = True
-
-writer = cv2.VideoWriter(out_file, fourcc, fps, frame_size, is_color)
-
-if not writer.isOpened():
-  output_error('writer cannot be opened <' + out_file + '>')
-  sys.exit(1)
-
-#####################################################################
 # setting for drawing
 #####################################################################
 
-font_face     = cv2.FONT_HERSHEY_SIMPLEX
-font_height   = 50
-str_thickness = 3
+font_face      = cv2.FONT_HERSHEY_TRIPLEX
+font_height    = 50
+font_thickness = 3
+font_color     = (255, 255, 255)
 
 sample_str  = '888888'
 is_baseline = False
 
 margin = 20
+
+rect_color     = (0, 0, 0)
+rect_thickness = cv2.FILLED
 
 #####################################################################
 # prepare for drawing
@@ -124,25 +117,22 @@ digit_num  = len(sample_str)
 str_format = '0' + str(digit_num) + 'd'
 
 font_scale = cv2.getFontScaleFromHeight(font_face, font_height)
-base_size, baseline = cv2.getTextSize(sample_str, font_face, font_scale, str_thickness)
+base_size, baseline = cv2.getTextSize(sample_str, font_face, font_scale, font_thickness)
 
 if not is_baseline:
   baseline = 0
 
-str_w     = base_size[0]
-str_h     = base_size[1]
-str_color = (255, 255, 255)
+str_w = base_size[0]
+str_h = base_size[1]
 
-rect_w         = str_w + margin * 2
-rect_h         = str_h + margin * 2 + baseline
-rect_color     = (0, 0, 0)
-rect_thickness = cv2.FILLED
+rect_w = str_w + margin * 2
+rect_h = str_h + margin * 2 + baseline
 
 #####################################################################
 # main routine
 #####################################################################
 
-frame_number = 1
+frame_number = 0
 
 while True:
   is_frame, frame = cap.read()
@@ -150,31 +140,27 @@ while True:
   if not is_frame:
     break
   else:
-    cur_str = format(frame_number, str_format)
+    for i in range(point_num):
+      rect_top_left     = (xs[i], ys[i])
+      rect_bottom_right = (xs[i] + rect_w, ys[i] + rect_h)
+      cv2.rectangle(frame, rect_top_left, rect_bottom_right, rect_color, rect_thickness)
 
-    cur_idx = int(frame_number % point_num)
-    x = xs[cur_idx]
-    y = ys[cur_idx]
+    num_str = format(frame_number, str_format)
+    point_idx = int(frame_number % point_num)
+    str_org = (xs[point_idx] + margin, ys[point_idx] + margin + str_h)
+    cv2.putText(frame, num_str, str_org, font_face, font_scale, font_color, font_thickness)
 
-    rect_top_left     = (x, y)
-    rect_bottom_right = (x + rect_w, y + rect_h)
-    cv2.rectangle(frame, rect_top_left, rect_bottom_right, rect_color, rect_thickness)
+    out_base = out_dir + '_' + "{0:06d}".format(frame_number) + '.png'
+    out_file = out_dir + '/' + out_base
+    cv2.imwrite(out_file, frame)
+    print(out_file, flush=True)
 
-    str_org = (x + margin, y + margin + str_h)
-    cv2.putText(frame, cur_str, str_org, font_face, font_scale, str_color, str_thickness)
-
-    writer.write(frame)
-
-    frame_number = frame_number + 1
-
-    cv2.imshow("Test", frame)
-    if cv2.waitKey(0) & 0xFF == ord('q'):
-        break
+    frame_number += 1
+    if (frame_number == point_num) and is_only_round:
+      break
 
 #####################################################################
 # cleanup
 #####################################################################
 
 cap.release()
-writer.release()
-cv2.destroyAllWindows()
