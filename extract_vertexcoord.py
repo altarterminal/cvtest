@@ -187,27 +187,47 @@ def on_mouse_event(event, x, y, flag, params):
     pass
 
 #####################################################################
-# main routine
+# prepare
 #####################################################################
 
-raw_image = cv2.imread(input_file)
-width  = raw_image.shape[1]
-height = raw_image.shape[0]
+if input_file.endswith('.jpg') or input_file.endswith('.png'):
+  is_image = True
+  raw_image = cv2.imread(input_file)
+else:
+  is_image = False
+  cap = cv2.VideoCapture(input_file)
+
+  if not cap.isOpened():
+    output_error('cannot open video')
+    sys.exit(1)
+
+  is_frame, raw_image = cap.read()
+  if not is_frame:
+    output_error('cannot get the head frame')
+    sys.exit(1)
+
 window_name = "Perspective Transform"
-point_list = []
-max_num = 4
+point_list  = []
+raw_width   = raw_image.shape[1]
+raw_height  = raw_image.shape[0]
+max_num     = 4
 
 params = {
   "raw_image":   raw_image,
   "window_name": window_name,
   "point_list":  point_list,
-  "width":       width,
-  "height":      height,
+  "width":       raw_width,
+  "height":      raw_height,
   "max_num":     max_num,
 }
 
 cv2.namedWindow(window_name)
 cv2.setMouseCallback(window_name, on_mouse_event, params)
+
+#####################################################################
+# main routine
+#####################################################################
+
 cv2.imshow(window_name, raw_image)
 
 while True:
@@ -223,6 +243,14 @@ while True:
       output_warn("Specify the FOUR points")
     else:
       break
+  elif keycode == 0x6E:
+    # [n]
+    if is_image:
+      output_warn("The input data is an image")
+    else:
+      params["raw_image"] = raw_image
+      params["point_list"].clear()
+      cv2.imshow(window_name, raw_image)
   else:
     output_info("[q] for quit of [Enter] for term input")
 
@@ -231,31 +259,35 @@ while True:
 #####################################################################
 
 if target_width <= 0:
-  target_width = width
+  final_width = raw_width
+else:
+  final_width = target_width
 
 if target_height <= 0:
-  target_height = height
+  final_height = raw_height
+else:
+  final_height = target_height
 
-target_list = [
+final_list = [
   [0, 0],
-  [target_width, 0],
-  [target_width, target_height],
-  [0, target_height]
+  [final_width, 0],
+  [final_width, final_height],
+  [0, final_height]
 ]
 
 src_points = np.float32(point_list)
-dst_points = np.float32(target_list)
+dst_points = np.float32(final_list)
 
 M = cv2.getPerspectiveTransform(src_points, dst_points)
-dst_img = cv2.warpPerspective(raw_image, M, (target_width, target_height))
-
-if is_print:
-  print("src: {}".format(point_list))
-  print("dst: {}".format(target_list))
-
-print(M)
+dst_img = cv2.warpPerspective(raw_image, M, (final_width, final_height))
 
 cv2.namedWindow('Transformed Image')
 cv2.imshow('Transformed Image', dst_img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+if is_print:
+  print("src: {}".format(point_list))
+  print("dst: {}".format(final_list))
+
+print(M)
