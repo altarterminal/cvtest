@@ -248,9 +248,13 @@ while True:
     if is_image:
       output_warn("The input data is an image")
     else:
-      params["raw_image"] = raw_image
-      params["point_list"].clear()
-      cv2.imshow(window_name, raw_image)
+      is_frame, raw_image = cap.read()
+      if not is_frame:
+        output_warn('No frame is left')
+      else:
+        params["raw_image"] = raw_image
+        params["point_list"].clear()
+        cv2.imshow(window_name, raw_image)
   else:
     output_info("[q] for quit of [Enter] for term input")
 
