@@ -32,14 +32,16 @@ parser.add_argument('-d', '--out-dir', type=str, default='.')
 parser.add_argument('-c', '--cols', type=int, required=True)
 parser.add_argument('-r', '--rows', type=int, required=True)
 parser.add_argument('-m', '--homography-matrix-files', type=str)
+parser.add_argument('--is-round-only', action='store_true')
 args = parser.parse_args()
 
-in_file      = args.in_file
-out_name     = args.out_name
-out_dir      = args.out_dir
-out_width    = args.cols
-out_height   = args.rows
-matrix_files = args.homography_matrix_files
+in_file       = args.in_file
+out_name      = args.out_name
+out_dir       = args.out_dir
+out_width     = args.cols
+out_height    = args.rows
+matrix_files  = args.homography_matrix_files
+is_round_only = args.is_round_only
 
 if not os.access(in_file, os.F_OK) or not os.access(in_file, os.R_OK):
   output_error('invalid file specified <' + in_file + '>')
@@ -138,6 +140,9 @@ while True:
       print(out_base, flush=True)
 
     frame_number += 1
+
+    if is_round_only and (frame_number == 1):
+      break
   else:
     break
 
