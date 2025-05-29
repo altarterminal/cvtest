@@ -39,7 +39,7 @@ out_name     = args.out_name
 out_dir      = args.out_dir
 out_width    = args.cols
 out_height   = args.rows
-matrix_files = args.homograpy_matrix_files
+matrix_files = args.homography_matrix_files
 
 if not os.access(in_file, os.F_OK) or not os.access(in_file, os.R_OK):
   output_error('invalid file specified <' + in_file + '>')
@@ -129,8 +129,7 @@ while True:
     for roi_number, matrix in enumerate(matrix_list, 1):
       out_base = out_name_prefix       + '_' + \
         "{0:06d}".format(frame_number) + '_' + \
-        "{0:02d}".format(roi_number)   + '_' + \
-        '.png'
+        "{0:02d}".format(roi_number)   + '.png'
       out_file = out_dir + '/' + out_base
 
       transformed_frame = cv2.warpPerspective(frame, matrix, out_size)
