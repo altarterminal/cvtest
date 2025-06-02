@@ -185,13 +185,11 @@ while True:
     frame_pil = Image.fromarray(frame)
     draw = ImageDraw.Draw(frame_pil)
 
-    # fill the background at locations of all frame numbers
-    for i in range(point_num):
-      draw.rectangle(dboxs[i], fill=rect_color)
-
     # overwrite frame number
     num_str = format(frame_number, str_format)
-    point = points[int((frame_number - 1) % point_num)]
+    cur_idx = int((frame_number - 1) % point_num)
+    point = points[cur_idx]
+    draw.rectangle(dboxs[cur_idx], fill=rect_color)
     draw.text(point, num_str, fill=font_color, font=font)
     drawn_frame = numpy.array(frame_pil)
 
