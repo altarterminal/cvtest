@@ -122,6 +122,17 @@ def draw_ongoing(image, point_list, x, y, max_num):
   tail_point = point_list[point_num - 1]
   cv2.line(image, [x, y], tail_point, ongoing_color, ongoing_thickness)
 
+def draw_coord(image, x, y):
+  delta      = 20
+  font_face  = cv2.FONT_HERSHEY_DUPLEX
+  font_scale = 1.0
+  coord_str  = '(' + str(x) + ', ' + str(y) + ')'
+  org        = (x + delta, y - delta)
+  color      = (128, 128, 128)
+  thickness  = 3
+
+  cv2.putText(image, coord_str, org, font_face, font_scale, color, thickness)
+
 #####################################################################
 # function for mouse event
 #####################################################################
@@ -141,6 +152,7 @@ def on_event_add(x, y, flag, params):
   draw_radar(image, x, y, width, height)
   draw_side(image, point_list)
   draw_vertex(image, point_list)
+  draw_coord(image, x, y)
   cv2.imshow(window_name, image)
 
 def on_event_delete(x, y, flag, params):
@@ -159,6 +171,7 @@ def on_event_delete(x, y, flag, params):
   draw_side(image, point_list)
   draw_ongoing(image, point_list, x, y, max_num)
   draw_vertex(image, point_list)
+  draw_coord(image, x, y)
   cv2.imshow(window_name, image)
 
 def on_event_steady(x, y, flag, params):
@@ -174,6 +187,7 @@ def on_event_steady(x, y, flag, params):
   draw_side(image, point_list)
   draw_ongoing(image, point_list, x, y, max_num)
   draw_vertex(image, point_list)
+  draw_coord(image, x, y)
   cv2.imshow(window_name, image)
 
 def on_mouse_event(event, x, y, flag, params):
