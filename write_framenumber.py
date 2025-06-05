@@ -30,13 +30,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('in_file', type=str)
 parser.add_argument('-p', '--points', type=str, default='')
 parser.add_argument('-d', '--out-dir', type=str, default='', help='output direcotry')
-parser.add_argument('--is-round-only', action='store_true')
+parser.add_argument('--round-only', action='store_true')
 
 args = parser.parse_args()
 in_file       = args.in_file
 points        = args.points
 out_dir       = args.out_dir
-is_round_only = args.is_round_only
+is_round_only = args.round_only
 
 if not os.access(in_file, os.F_OK) or not os.access(in_file, os.R_OK):
   output_error('invalid file specified <' + in_file + '>')
