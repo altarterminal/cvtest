@@ -7,6 +7,7 @@
 import os
 import sys
 import argparse
+import glob
 import re
 
 #####################################################################
@@ -27,13 +28,16 @@ def output_info(msg):
 #####################################################################
 
 parser = argparse.ArgumentParser()
-parser.add_argument('in_file', type=str)
+parser.add_argument('file_pattern', type=str)
 
-args    = parser.parse_args()
-in_file = args.in_file
+args = parser.parse_args()
+file_pattern = args.file_pattern
 
-if not os.access(in_file, os.F_OK) or not os.access(in_file, os.R_OK):
-  output_error('invalid file specified <' + in_file + '>')
+glob_list = glob.glob(file_pattern)
+file_list = list(filter(lambda x: os.access(x, os.F_OK), glob_list))
+
+if not file_list:
+  output_error('no file found <' + file_pattern + '>')
   sys.exit(1)
 
 #####################################################################
@@ -46,46 +50,44 @@ except ImportError:
   output_error('opencv not found')
   sys.exit(1)
 
-try:
-  import numpy
-except ImportError:
-  output_error('numpy not found')
-  sys.exit(1)
-
 #####################################################################
 # prepare
 #####################################################################
 
-image = cv2.imread(in_file)
-
-if image is None:
-  output_error('cannot open file as image <' + in_file + '>')
-  sys.exit(1)
-
 detector = cv2.QRCodeDetectorAruco()
 
+pattern = re.compile(r'^[0-9]{6}$')
+
 #####################################################################
-# main routine
+# recognized frame numbers
 #####################################################################
 
-is_exist, infos, _, _ = detector.detectAndDecodeMulti(image)
+number_list = []
 
-if not is_exist:
-  output_error('QR code not found <' + in_file + '>')
+for file in file_list:
+  image = cv2.imread(file)
+
+  if image is None:
+    output_error('cannot open file as image <' + file + '>')
+    sys.exit(1)
+
+  _, info_list, _, _ = detector.detectAndDecodeMulti(image)
+
+  # It is assumed that there is only one QR code
+  if len(info_list) != 1:
+    continue
+
+  if pattern.match(info_list[0]) is None:
+    continue
+
+  number_list.append(info_list[0])
+
+#####################################################################
+# determine the representative frame number
+#####################################################################
+
+if not number_list:
+  output_error('recognize failed <' + file_pattern + '>')
   sys.exit(1)
 
-recognized_strings = \
-  list(filter(lambda x: x != "", infos))
-
-if len(recognized_strings) == 0:
-  output_error('decode failed <' + in_file + '>')
-  sys.exit(1)
-
-valid_strings = \
-  list(filter(lambda x: re.match(r'^[0-9]{6}$', x) != None, recognized_strings))
-
-if len(valid_strings) == 0:
-  output_error('recognize failed <' + in_file + '>')
-  sys.exit(1)
-
-print(sorted(valid_strings, reverse=True)[0])
+print(sorted(number_list, reverse=True)[0])
