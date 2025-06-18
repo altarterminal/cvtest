@@ -235,7 +235,7 @@ params = {
   "max_num":     max_num,
 }
 
-cv2.namedWindow(window_name)
+cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 cv2.setMouseCallback(window_name, on_mouse_event, params)
 
 #####################################################################
